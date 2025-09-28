@@ -113,8 +113,21 @@ async fn main() -> std::io::Result<()> {
                         directory = PathBuf::from(loc)
                     }
                 }
-                _ => panic!("unknown long-flag {arg}!"),
+                _ => panic!("Unknown long-flag {arg}!"),
             }
+        } else if let Some(arg) = arg.strip_prefix("-") {
+            for arg in arg.chars() {
+                match arg {
+                    'd' => {
+                        if let Some(loc) = args.next() {
+                            directory = PathBuf::from(loc)
+                        }
+                    }
+                    _ => panic!("Unknown short-flag {arg}!"),
+                }
+            }
+        } else {
+            panic!("Unknown parameter {arg}!");
         }
     }
     println!("Using folder {}", directory.display());
