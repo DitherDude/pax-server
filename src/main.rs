@@ -104,7 +104,7 @@ struct CoreData {
 async fn main() -> std::io::Result<()> {
     let mut directory = std::env::current_dir()?;
     let args = std::env::args().collect::<Vec<String>>();
-    let mut args = args.iter();
+    let mut args = args.iter().skip(1);
     while let Some(arg) = args.next() {
         if let Some(arg) = arg.strip_prefix("--") {
             match arg {
