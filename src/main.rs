@@ -44,10 +44,10 @@ async fn metadata(
 
 #[get("/package/{name}/{ver}")]
 async fn package(
-    name: web::Path<String>,
-    ver: web::Path<String>,
+    blocks: web::Path<(String, String)>,
     data: web::Data<CoreData>,
 ) -> Result<NamedFile, actix_web::Error> {
+    let (name, ver) = blocks.into_inner();
     if let Some(location) = path_check(&name, &data.directory) {
         if location.is_dir() {
             let name = format!("{name}-{ver}.pax");
