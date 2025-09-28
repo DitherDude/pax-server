@@ -103,6 +103,7 @@ struct CoreData {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut directory = std::env::current_dir()?;
+    let mut port = 8080u16;
     let args = std::env::args().collect::<Vec<String>>();
     let mut args = args.iter().skip(1);
     while let Some(arg) = args.next() {
@@ -111,6 +112,11 @@ async fn main() -> std::io::Result<()> {
                 "directory" => {
                     if let Some(loc) = args.next() {
                         directory = PathBuf::from(loc)
+                    }
+                }
+                "port" => {
+                    if let Some(Ok(val)) = args.next().map(|x| x.parse::<u16>()) {
+                        port = val
                     }
                 }
                 _ => panic!("Unknown long-flag {arg}!"),
@@ -123,6 +129,11 @@ async fn main() -> std::io::Result<()> {
                             directory = PathBuf::from(loc)
                         }
                     }
+                    'p' => {
+                        if let Some(Ok(val)) = args.next().map(|x| x.parse::<u16>()) {
+                            port = val
+                        }
+                    }
                     _ => panic!("Unknown short-flag {arg}!"),
                 }
             }
@@ -131,6 +142,7 @@ async fn main() -> std::io::Result<()> {
         }
     }
     println!("Using folder {}", directory.display());
+    println!("Using port {port}");
     let data = CoreData { directory };
     HttpServer::new(move || {
         App::new()
@@ -139,7 +151,7 @@ async fn main() -> std::io::Result<()> {
             .service(package)
             .service(version)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("0.0.0.0", port))?
     .run()
     .await
 }
