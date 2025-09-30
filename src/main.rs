@@ -162,13 +162,9 @@ struct PackageMetadata {
     name: String,
     description: String,
     version: String,
-    origin: String,
     dependencies: Vec<String>,
     runtime_dependencies: Vec<String>,
-    build: String,
-    binary: String,
-    install: String,
-    uninstall: String,
+    hash: String,
 }
 
 fn path_check(subpath_str: &str, origpath: &Path) -> Option<PathBuf> {
