@@ -162,8 +162,12 @@ struct PackageMetadata {
     name: String,
     description: String,
     version: String,
+    origin: String,
     dependencies: Vec<String>,
     runtime_dependencies: Vec<String>,
+    build: String,
+    install: String,
+    uninstall: String,
     hash: String,
 }
 
