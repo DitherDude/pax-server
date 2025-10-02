@@ -65,7 +65,7 @@ fn get_latest(path: &Path) -> Option<PathBuf> {
         .filter_map(|x| x.ok().filter(|x| x.path().is_dir()))
         .collect::<Vec<DirEntry>>();
     dirs.sort_by_key(|x| x.file_name());
-    let mut latest = dbg!(dirs.last())?.path();
+    let mut latest = dirs.last()?.path();
     latest.push(Path::new("metadata.yaml"));
     if latest.is_file() { Some(latest) } else { None }
 }
