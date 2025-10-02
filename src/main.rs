@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs::{self, DirEntry},
     io::Read,
     path::{Component, Path, PathBuf},
 };
@@ -14,32 +14,102 @@ use serde::{Deserialize, Serialize};
 async fn metadata(
     name: web::Path<String>,
     data: web::Data<CoreData>,
+    info: web::Query<Version>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    if let Some(mut location) = path_check(&name, &data.directory) {
+    let location = if let Some(location) = path_check(&name, &data.directory) {
         if location.is_dir() {
-            location.push(Path::new("metadata.yaml"));
-            match yaml_file_to_json_str(&location) {
-                Some(body) => Ok(HttpResponse::with_body(StatusCode::OK, BoxBody::new(body))),
-                None => Err(InternalError::new(
-                    "Error reading package metadata!",
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-                .into()),
-            }
+            location
         } else {
-            Err(InternalError::new(
+            return Err(InternalError::new(
                 "Requested package could not be found.",
                 StatusCode::NOT_FOUND,
             )
-            .into())
+            .into());
         }
     } else {
-        Err(InternalError::new(
+        return Err(InternalError::new(
             "You do not have access to this location.",
             StatusCode::FORBIDDEN,
         )
+        .into());
+    };
+    let location = if let Some(ver) = &info.v {
+        get_version(&location, ver)
+    } else {
+        get_latest(&location)
+    };
+    if let Some(location) = location
+        && location.is_file()
+    {
+        match yaml_file_to_json_str(&location) {
+            Some(body) => Ok(HttpResponse::with_body(StatusCode::OK, BoxBody::new(body))),
+            None => Err(InternalError::new(
+                "Error reading package metadata!",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .into()),
+        }
+    } else {
+        Err(InternalError::new(
+            "Requested package's version's metadata could not be found.",
+            StatusCode::NOT_FOUND,
+        )
         .into())
     }
+}
+
+fn get_latest(path: &Path) -> Option<PathBuf> {
+    let mut dirs = path
+        .read_dir()
+        .ok()?
+        .filter_map(|x| x.ok().filter(|x| x.path().is_dir()))
+        .collect::<Vec<DirEntry>>();
+    dirs.sort_by_key(|x| x.file_name());
+    let mut latest = dbg!(dirs.last())?.path();
+    latest.push(Path::new("metadata.yaml"));
+    if latest.is_file() { Some(latest) } else { None }
+}
+
+fn get_version(path: &Path, ver: &str) -> Option<PathBuf> {
+    let dirs = path
+        .read_dir()
+        .ok()?
+        .filter_map(|x| x.ok().filter(|x| x.path().is_dir()));
+    // dirs.sort_by_key(|x| x.file_name());
+    // let dirs = dirs.iter();
+    let split = ver.split('.').collect::<Vec<&str>>();
+    let dirs = match split.len() {
+        1 => Some(
+            dirs.filter(|x| {
+                x.file_name()
+                    .into_string()
+                    .is_ok_and(|x| x.starts_with(&format!("{}.", split[0])))
+            })
+            .collect::<Vec<DirEntry>>(),
+        ),
+        2 => Some(
+            dirs.filter(|x| {
+                x.file_name()
+                    .into_string()
+                    .is_ok_and(|x| x.starts_with(&format!("{}.{}.", split[0], split[1])))
+            })
+            .collect(),
+        ),
+        3 => Some(
+            dirs.filter(|x| x.file_name().into_string().is_ok_and(|x| x == ver))
+                .collect(),
+        ),
+        _ => None,
+    };
+    let dirs = if let Some(mut dirs) = dirs {
+        dirs.sort_by_key(|x| x.file_name());
+        Some(dirs)
+    } else {
+        None
+    };
+    let mut latest = dirs?.last()?.path();
+    latest.push(Path::new("metadata.yaml"));
+    if latest.is_file() { Some(latest) } else { None }
 }
 
 #[get("/package/{name}/{ver}")]
@@ -99,6 +169,11 @@ async fn version() -> Result<HttpResponse, actix_web::Error> {
 #[derive(Clone)]
 struct CoreData {
     directory: PathBuf,
+}
+
+#[derive(Deserialize)]
+struct Version {
+    v: Option<String>,
 }
 
 #[actix_web::main]
