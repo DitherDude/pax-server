@@ -1,14 +1,14 @@
+use actix_files::NamedFile;
+use actix_web::{
+    App, HttpResponse, HttpServer, body::BoxBody, error::InternalError, get, http::StatusCode, web,
+};
+use semver::Version as SemVer;
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, DirEntry},
     io::Read,
     path::{Component, Path, PathBuf},
 };
-
-use actix_files::NamedFile;
-use actix_web::{
-    App, HttpResponse, HttpServer, body::BoxBody, error::InternalError, get, http::StatusCode, web,
-};
-use serde::{Deserialize, Serialize};
 
 #[get("/packages/metadata/{name}")]
 async fn metadata(
@@ -64,7 +64,9 @@ fn get_latest(path: &Path) -> Option<PathBuf> {
         .ok()?
         .filter_map(|x| x.ok().filter(|x| x.path().is_dir()))
         .collect::<Vec<DirEntry>>();
-    dirs.sort_by_key(|x| x.file_name());
+    dirs.sort_by_key(|x| {
+        SemVer::parse(&x.file_name().to_string_lossy()).unwrap_or(SemVer::new(0, 0, 0))
+    });
     let mut latest = dirs.last()?.path();
     latest.push(Path::new("metadata.yaml"));
     if latest.is_file() { Some(latest) } else { None }
@@ -75,8 +77,6 @@ fn get_version(path: &Path, ver: &str) -> Option<PathBuf> {
         .read_dir()
         .ok()?
         .filter_map(|x| x.ok().filter(|x| x.path().is_dir()));
-    // dirs.sort_by_key(|x| x.file_name());
-    // let dirs = dirs.iter();
     let split = ver.split('.').collect::<Vec<&str>>();
     let dirs = match split.len() {
         1 => Some(
@@ -102,7 +102,9 @@ fn get_version(path: &Path, ver: &str) -> Option<PathBuf> {
         _ => None,
     };
     let dirs = if let Some(mut dirs) = dirs {
-        dirs.sort_by_key(|x| x.file_name());
+        dirs.sort_by_key(|x| {
+            SemVer::parse(&x.file_name().to_string_lossy()).unwrap_or(SemVer::new(0, 0, 0))
+        });
         Some(dirs)
     } else {
         None
@@ -154,7 +156,7 @@ fn yaml_file_to_json_str(path: &PathBuf) -> Option<String> {
     let mut file = fs::File::open(path).ok()?;
     let mut data = String::new();
     file.read_to_string(&mut data).ok()?;
-    let body: PackageMetadata = serde_yml::from_str(&data).ok()?;
+    let body: PackageMetadata = serde_norway::from_str(&data).ok()?;
     serde_json::to_string(&body).ok()
 }
 
