@@ -245,6 +245,7 @@ struct PackageMetadata {
     build: String,
     install: String,
     uninstall: String,
+    purge: String,
     hash: String,
 }
 
