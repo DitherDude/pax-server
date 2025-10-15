@@ -240,7 +240,7 @@ struct PackageMetadata {
     description: String,
     version: String,
     origin: String,
-    dependencies: Vec<String>,
+    build_dependencies: Vec<String>,
     runtime_dependencies: Vec<String>,
     build: String,
     install: String,
